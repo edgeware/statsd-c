@@ -57,8 +57,11 @@
 #include "counters.h"
 #include "strings.h"
 #include "embeddedgmetric.h"
+#include "logd.h"
 
 #define LOCK_FILE "/tmp/statsd.lock"
+
+#define SEND_GRAPHITE
 
 /*
  * GLOBAL VARIABLES
@@ -77,9 +80,12 @@ pthread_t thread_udp;
 pthread_t thread_mgmt;
 pthread_t thread_flush;
 pthread_t thread_queue;
+pthread_t thread_logd;
 int port = PORT, mgmt_port = MGMT_PORT, ganglia_port = GANGLIA_PORT, flush_interval = FLUSH_INTERVAL;
 int debug = 0, friendly = 0, clear_stats = 0, daemonize = 0, enable_gmetric = 0;
 char *serialize_file = NULL, *ganglia_host = NULL, *ganglia_spoof = NULL, *ganglia_metric_prefix = NULL, *lock_file = NULL;
+
+static struct logd_resource logd_graphite = { .started = false };
 
 /*
  * FUNCTION PROTOTYPES
@@ -251,7 +257,7 @@ void syntax(char *argv[]) {
 }
 
 int main(int argc, char *argv[]) {
-  int pids[4] = { 1, 2, 3, 4 };
+  int pids[5] = { 1, 2, 3, 4, 5 };
   int opt, rc = 0;
   pthread_attr_t attr;
 
@@ -338,6 +344,9 @@ int main(int argc, char *argv[]) {
     openlog("statsd-c", LOG_CONS, LOG_USER);
   }
 
+  /* Initialize logd resources */
+  logd_init_resource(&logd_graphite, "/var/logd/statsd-graphite.socket");
+
   /* Initialization of certain stats, here. */
   init_stats();
 
@@ -354,6 +363,7 @@ int main(int argc, char *argv[]) {
   pthread_create (&thread_mgmt,  daemonize ? &attr : NULL, (void *) &p_thread_mgmt,  (void *) &pids[1]);
   pthread_create (&thread_flush, daemonize ? &attr : NULL, (void *) &p_thread_flush, (void *) &pids[2]);
   pthread_create (&thread_queue, daemonize ? &attr : NULL, (void *) &p_thread_queue, (void *) &pids[3]);
+  pthread_create (&thread_logd, daemonize ? &attr : NULL, (void *) &p_thread_logd, (void *) &pids[4]);
 
   if (daemonize) {
     syslog(LOG_DEBUG, "Destroying pthread attributes");
@@ -1173,6 +1183,8 @@ void p_thread_flush(void *ptr) {
     /* TODO: Flush to graphite */
 #ifdef SEND_GRAPHITE
     printf("Messages:\n%s", statString);
+    logd_write(&logd_graphite, statString, strlen(statString));
+ 
 #endif
 
     if (enable_gmetric) {
