@@ -50,7 +50,7 @@ configure_file (
 include_directories("${PROJECT_BINARY_DIR}")
 
 # Daemon binary
-add_executable(statsd src/statsd.c src/queue.c src/serialize.c src/strings.c src/embeddedgmetric/embeddedgmetric.c src/embeddedgmetric/modp_numtoa.c src/json-c/arraylist.c src/json-c/debug.c src/json-c/json_object.c src/json-c/json_tokener.c src/json-c/json_util.c src/json-c/linkhash.c src/json-c/printbuf.c)
+add_executable(statsd src/statsd.c src/logd.c src/queue.c src/serialize.c src/strings.c src/embeddedgmetric/embeddedgmetric.c src/embeddedgmetric/modp_numtoa.c src/json-c/arraylist.c src/json-c/debug.c src/json-c/json_object.c src/json-c/json_tokener.c src/json-c/json_util.c src/json-c/linkhash.c src/json-c/printbuf.c)
 
 # Client binary
 add_executable(statsd_client src/statsd_client.c)
